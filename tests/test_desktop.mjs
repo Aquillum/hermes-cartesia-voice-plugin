@@ -123,6 +123,26 @@ test('save verifies values independently of backend JSON property order', async 
   assert.equal(model.message, 'Favorites saved.');
 });
 
+test('missing backend explains disabled fields and Reload recovers editing', async () => {
+  const { Model } = await load(); let available = false;
+  const model = new Model({ rest: async () => {
+    if (!available) throw new Error('404: {"detail":"Plugin not found"}');
+    return state('test-a');
+  } });
+  await model.reload();
+  assert.equal(model.saved, null);
+  assert.equal(model.busy, false);
+  assert.match(model.error, /backend.*active gateway profile/i);
+  assert.match(model.error, /Reload/);
+  available = true; await model.reload();
+  assert.equal(model.saved.profile, 'test-a');
+  assert.equal(model.error, '');
+  model.edit(0, 'gender', 'male');
+  assert.equal(model.rows[0].gender, 'male');
+  model.edit(0, 'name', 'Editable');
+  assert.equal(model.rows[0].name, 'Editable');
+});
+
 test('fallback registers only the supported Settings contribution area', async () => {
   const c = await load(); let contribution;
   c.plugin.register({ register(value) { contribution = value; } });

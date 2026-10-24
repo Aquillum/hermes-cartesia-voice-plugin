@@ -1,7 +1,7 @@
 # Cartesia Voice for Hermes
 
 Native Python **TTS-only** plugin for Hermes Agent **>=0.22.5**. Plugin ID:
-`cartesia-voice`; provider ID: `cartesia`; version: `0.2.0`.
+`cartesia-voice`; provider ID: `cartesia`; version: `0.2.1`.
 
 Whole-file WAV and MP3 synthesis is implemented. **Streaming, STT, voice cloning,
 voice discovery over the network, and realtime conversation are deferred.**
@@ -87,6 +87,29 @@ The same package includes an opt-in native Desktop settings page. After installi
 the agent plugin in the intended profile, open **Capabilities → Plugins → Cartesia
 Voice**, enable its Desktop half, and open **Settings → Plugins → Cartesia Voice**.
 If discovery is stale, run **Reload desktop plugins** from the command palette.
+
+**The Desktop toggle enables the UI only.** Its active gateway profile also needs
+the native agent/backend plugin installed and enabled. Otherwise the page gets
+`404: Plugin not found` and deliberately disables all editable fields, including
+Gender. When Desktop uses the default gateway while speech uses a named profile,
+install the same package in both profiles, for example:
+
+```sh
+hermes -p default plugins install Aquillum/hermes-cartesia-voice-plugin --enable
+hermes -p jackryan plugins install Aquillum/hermes-cartesia-voice-plugin --enable
+```
+
+The default backend can manage the shared local favorites **without a Cartesia
+key**; skip the key prompt when that profile will not synthesize Cartesia audio.
+Installing/enabling the plugin does not change that profile's TTS provider,
+voice or automatic read-aloud. Reload the page after enabling its backend.
+Voice selection still applies only to the **Loaded backend profile**, not to
+the separate Settings selector. Check that label before choosing a radio.
+
+The package uses virtual, dependency-only Python metadata (`tool.uv.package =
+false`, no build backend). Hermes loads its directory directly. This prevents
+same-distribution-name workspace conflicts when installed in multiple profiles;
+it is not a wheel/pip distribution.
 
 - Five slots: **Voice Name**, **Language**, **Gender** (`male` / `female`), and
   **Voice ID** (UUID). Leave an entire slot blank or complete all four fields.

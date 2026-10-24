@@ -49,7 +49,14 @@ export class FavoritesModel {
     try {
       const data = await this.ctx.rest('/favorites');
       if (generation === this.generation) this.accept(data);
-    } catch (error) { if (generation === this.generation) this.error = String(error.message || error); }
+    } catch (error) {
+      if (generation === this.generation) {
+        const message = String(error.message || error);
+        this.error = /\b404\b/.test(message) && /Plugin not found/i.test(message)
+          ? 'Cartesia backend is not installed or enabled in the active gateway profile. Enabling the Desktop page alone is not enough. Enable the agent plugin for that backend, then click Reload. No Cartesia API key is needed to manage favorites.'
+          : message;
+      }
+    }
     finally { if (generation === this.generation) { this.busy = false; this.emit(); } }
   }
   edit(index, field, value) {
