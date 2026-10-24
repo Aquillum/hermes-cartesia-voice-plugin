@@ -1,0 +1,14 @@
+.scratch/
+evidence/
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+.env
+.env.*
+*.wav
+*.mp3
+*.ogg
+*.opus

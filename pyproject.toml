@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=68,<82"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hermes-cartesia-voice-plugin"
+version = "0.1.0"
+description = "Native Cartesia whole-file TTS provider for Hermes Agent"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+authors = [{name = "Aquillum"}]
+dependencies = []
+keywords = ["hermes", "cartesia", "tts"]
+
+# Hermes directory discovery is the supported installation path.
+# No pip entry point: avoids duplicate registration after directory install.
+[tool.setuptools]
+packages = ["hermes_cartesia_voice"]
+package-dir = {hermes_cartesia_voice = "."}
+
+[tool.setuptools.package-data]
+hermes_cartesia_voice = ["plugin.yaml"]

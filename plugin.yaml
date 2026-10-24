@@ -1,0 +1,16 @@
+name: cartesia-voice
+version: "0.1.0"
+description: "Native whole-file Cartesia cloud TTS (WAV/MP3); streaming deferred."
+author: Aquillum
+license: MIT
+requires_hermes: ">=0.22.5"
+requires_env:
+  - CARTESIA_API_KEY
+provides_tools: []
+provides_hooks: []
+provides_middleware: []
+python_dependencies: []
+# Provider registration does not need privileged host capabilities.
+capabilities: []
+# config_schema fields describe plugins.entries.<id>.config, NOT tts.cartesia.
+# This provider deliberately uses the documented shared TTS namespace instead.
