@@ -36,8 +36,20 @@ class CartesiaProvider(TTSProvider):
             return False
 
     def list_voices(self):
+        from .favorites import read_favorites
+        try:
+            favorites = read_favorites()
+        except ValueError:
+            import logging
+            logging.getLogger(__name__).warning('Cartesia favorites unavailable; using configured voice metadata.')
+            favorites = []
+        voices = [{'id': slot['voice_id'], 'display': slot['name'],
+                   'language': slot['language'], 'gender': slot['gender']}
+                  for slot in favorites if slot['voice_id']]
         voice = self.default_voice()
-        return [{'id': voice, 'display': 'Configured Cartesia voice'}] if voice else []
+        if voice and not any(item['id'].lower() == voice.lower() for item in voices):
+            voices.append({'id': voice, 'display': 'Configured Cartesia voice'})
+        return voices
 
     def default_voice(self):
         tts, cfg = self._settings()

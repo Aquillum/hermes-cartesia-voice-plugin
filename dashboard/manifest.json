@@ -1,0 +1,8 @@
+{
+  "name": "cartesia-voice",
+  "label": "Cartesia favorites",
+  "description": "Local five-slot favorites management API; no vendor requests or speech generation.",
+  "version": "0.2.0",
+  "tab": {"path": "/cartesia-voice", "hidden": true},
+  "api": "plugin_api.py"
+}

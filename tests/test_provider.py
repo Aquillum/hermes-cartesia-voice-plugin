@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+import sys
 from unittest.mock import Mock, patch
 import wave
 
@@ -12,12 +13,25 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def load_plugin():
     spec = importlib.util.spec_from_file_location('cartesia_plugin', ROOT / '__init__.py')
+    assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
     spec.loader.exec_module(module)
     return module
 
 
 class ProviderTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        root = Path(self.temp.name)
+        native = patch('hermes_constants._get_platform_default_hermes_home', return_value=root)
+        native.start()
+        self.addCleanup(native.stop)
+        home = patch.dict('os.environ', {'HERMES_HOME': str(root)})
+        home.start()
+        self.addCleanup(home.stop)
+
     def test_availability_and_metadata_follow_live_profile(self):
         from agent.secret_scope import (set_secret_scope, reset_secret_scope,
                                         set_multiplex_context, reset_multiplex_context)
@@ -67,7 +81,7 @@ class ProviderTests(unittest.TestCase):
         opener.open.return_value = response
         token = set_secret_scope({'CARTESIA_API_KEY': 'fake-key-for-tests'})
         try:
-            with tempfile.TemporaryDirectory(dir=ROOT / '.scratch') as directory, patch('hermes_cli.config.load_config', return_value={'tts': {'voice': 'global-voice', 'model': 'global-model', 'speed': 1.1}}), patch('urllib.request.build_opener', return_value=opener):
+            with tempfile.TemporaryDirectory() as directory, patch('hermes_cli.config.load_config', return_value={'tts': {'voice': 'global-voice', 'model': 'global-model', 'speed': 1.1}}), patch('urllib.request.build_opener', return_value=opener):
                 target = Path(directory) / 'speech.wav'
                 result = module.CartesiaProvider().synthesize('Hallo Welt', str(target), format='wav', ignored_future_option=True)
                 self.assertEqual(result, str(target))
@@ -92,7 +106,7 @@ class ProviderTests(unittest.TestCase):
             writer.setframerate(44100)
             writer.writeframes(pcm)
         for extra in (b'', b'JUNK\x03\x00\x00\x00abc\x00'):
-            with self.subTest(extra_chunk=bool(extra)), tempfile.TemporaryDirectory(dir=ROOT / '.scratch') as directory:
+            with self.subTest(extra_chunk=bool(extra)), tempfile.TemporaryDirectory() as directory:
                 streaming = bytearray(audio.getvalue())
                 streaming[36:36] = extra
                 data_offset = 36 + len(extra)
@@ -121,7 +135,7 @@ class ProviderTests(unittest.TestCase):
     def test_formats_and_provider_settings(self):
         module = load_plugin()
         for requested, container in [('mp3', 'mp3'), ('ogg', 'wav'), ('opus', 'wav'), ('flac', 'wav')]:
-            with self.subTest(format=requested), tempfile.TemporaryDirectory(dir=ROOT / '.scratch') as directory:
+            with self.subTest(format=requested), tempfile.TemporaryDirectory() as directory:
                 response = Mock()
                 response.__enter__ = Mock(return_value=response)
                 response.__exit__ = Mock(return_value=False)
@@ -183,7 +197,7 @@ class ProviderTests(unittest.TestCase):
         module = load_plugin()
         errors = [HTTPError('https://api.cartesia.ai/tts/bytes', code, 'private text and key', {}, io.BytesIO(b'private transcript')) for code in (401, 429, 500)] + [URLError('private key'), TimeoutError('private transcript')]
         for upstream in errors:
-            with self.subTest(error=type(upstream).__name__), tempfile.TemporaryDirectory(dir=ROOT / '.scratch') as directory, patch('hermes_cli.config.load_config', return_value={'tts': {'voice': 'test-voice'}}), patch('agent.secret_scope.get_secret', return_value='fake-test-key'), patch('urllib.request.OpenerDirector.open', side_effect=upstream):
+            with self.subTest(error=type(upstream).__name__), tempfile.TemporaryDirectory() as directory, patch('hermes_cli.config.load_config', return_value={'tts': {'voice': 'test-voice'}}), patch('agent.secret_scope.get_secret', return_value='fake-test-key'), patch('urllib.request.OpenerDirector.open', side_effect=upstream):
                 target = Path(directory) / 'speech.wav'
                 target.write_bytes(b'prior output')
                 with self.assertRaisesRegex(RuntimeError, '^Cartesia request failed') as error:
@@ -208,7 +222,7 @@ class ProviderTests(unittest.TestCase):
             (200, 'audio/wav', b'x' * (32 * 1024 * 1024 + 1), {}),
         ]
         for status, mime, data, headers in cases:
-            with self.subTest(status=status, mime=mime, size=len(data)), tempfile.TemporaryDirectory(dir=ROOT / '.scratch') as directory, patch('hermes_cli.config.load_config', return_value={'tts': {'voice': 'test-voice'}}), patch('agent.secret_scope.get_secret', return_value='fake-test-key'):
+            with self.subTest(status=status, mime=mime, size=len(data)), tempfile.TemporaryDirectory() as directory, patch('hermes_cli.config.load_config', return_value={'tts': {'voice': 'test-voice'}}), patch('agent.secret_scope.get_secret', return_value='fake-test-key'):
                 response = Mock()
                 response.__enter__ = Mock(return_value=response)
                 response.__exit__ = Mock(return_value=False)
@@ -259,7 +273,7 @@ class ProviderTests(unittest.TestCase):
         response.read.return_value = audio.getvalue()
         opener = Mock()
         opener.open.return_value = response
-        with tempfile.TemporaryDirectory(dir=ROOT / '.scratch') as directory, patch('hermes_cli.config.load_config', return_value={'tts': {'voice': 'test-voice'}}), patch('agent.secret_scope.get_secret', return_value='fake-test-key'), patch('urllib.request.build_opener', return_value=opener), patch('os.replace', side_effect=OSError('private path')):
+        with tempfile.TemporaryDirectory() as directory, patch('hermes_cli.config.load_config', return_value={'tts': {'voice': 'test-voice'}}), patch('agent.secret_scope.get_secret', return_value='fake-test-key'), patch('urllib.request.build_opener', return_value=opener), patch('os.replace', side_effect=OSError('private path')):
             target = Path(directory) / 'speech.wav'
             target.write_bytes(b'prior output')
             with self.assertRaisesRegex(RuntimeError, '^Cartesia output could not be written'):

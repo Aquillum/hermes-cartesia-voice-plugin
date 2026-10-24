@@ -1,7 +1,7 @@
 # Cartesia Voice for Hermes
 
 Native Python **TTS-only** plugin for Hermes Agent **>=0.22.5**. Plugin ID:
-`cartesia-voice`; provider ID: `cartesia`; version: `0.1.0`.
+`cartesia-voice`; provider ID: `cartesia`; version: `0.2.0`.
 
 Whole-file WAV and MP3 synthesis is implemented. **Streaming, STT, voice cloning,
 voice discovery over the network, and realtime conversation are deferred.**
@@ -69,7 +69,7 @@ This lets a Cartesia voice override an unrelated global voice such as `alloy`.
 
 | Setting | Default | Notes |
 | --- | --- | --- |
-| `voice` | required | Account voice ID; the only voice shown in local metadata |
+| `voice` | required | Account voice ID; configured voice and saved favorites appear in local metadata |
 | `model` | `sonic-3.5` | Deliberately pinned compatibility baseline, not `sonic-latest` |
 | `speed` | global `tts.speed`, then `1.0` | 0.6–1.5 inclusive; invalid speeds fail, not silently clamp |
 | `language` | unset | Optional language/locale string, e.g. `de` or `en-GB` |
@@ -80,6 +80,43 @@ This lets a Cartesia voice override an unrelated global voice such as `alloy`.
 Current Cartesia docs also list Sonic 3.6. This plugin deliberately retains
 `sonic-3.5`; select another model explicitly only after testing your account.
 The local model picker advertises the pinned baseline, not an invented live catalog.
+
+### Five personal voice favorites and Desktop settings
+
+The same package includes an opt-in native Desktop settings page. After installing
+the agent plugin in the intended profile, open **Capabilities → Plugins → Cartesia
+Voice**, enable its Desktop half, and open **Settings → Plugins → Cartesia Voice**.
+If discovery is stale, run **Reload desktop plugins** from the command palette.
+
+- Five slots: **Voice Name**, **Language**, **Gender** (`male` / `female`), and
+  **Voice ID** (UUID). Leave an entire slot blank or complete all four fields.
+  Names are personal labels, not required to match Cartesia's catalog names.
+- **Save favorites** persists edits. The radio button selects one saved voice
+  for the **loaded backend profile**. Editing an entry does not select it;
+  deleting an entry does not silently replace the active voice.
+- Selection writes only `tts.cartesia.voice` and `tts.cartesia.language` through
+  Hermes configuration APIs. The language is the explicit synthesis hint. It
+  does not change `tts.provider`, enable automatic read-aloud, or supply API keys.
+- The catalog is deliberately **shared across profiles of this local OS user**,
+  at `<default Hermes root>/plugin-data/cartesia-voice/favorites.json`. It is not
+  stored in the plugin directory or Git, so updates do not overwrite personal
+  entries. Profiles retain separate selected voices and credentials. A remote
+  backend has its own local catalog; no cross-machine synchronization is implied.
+- Import/export uses the expandable JSON editor. Import creates a draft; inspect
+  it and press **Save favorites** to persist. Export never includes credentials.
+- Reading, saving and selecting favorites make **no Cartesia requests and spend
+  no TTS credits**. There is no automatic preview or full-catalog download.
+
+**SDK profile limitation:** on the tested Hermes SDK, plugin REST follows the
+active **gateway profile**, not the separate Settings **Applies to** override.
+Always check **Loaded backend profile** on this page. Switch the active gateway
+profile and click **Reload** to retarget; changing only **Applies to** is not
+sufficient. Every write checks and verifies the backend profile. A profile where
+the agent plugin is absent/disabled cannot serve this page's backend API. This
+release does not claim Settings-selector-aware routing or a phone/watch editor.
+
+The current favorites filesystem implementation targets Linux/macOS. Windows
+favorites management is not supported in this release.
 
 ### Formats and limits
 
@@ -106,8 +143,8 @@ No API key or paid request is needed for tests. Use a prepared Hermes environmen
 into a managed Hermes environment with ad-hoc pip.
 
 ```sh
-mkdir -p .scratch
 PYTHONPATH=/path/to/hermes-agent python -m unittest discover -s tests -v
+node --test tests/test_desktop.mjs
 hermes plugins doctor /path/to/clean-plugin-copy --ci
 hermes plugins validate /path/to/clean-plugin-copy --install-deps
 ```
@@ -117,8 +154,11 @@ Use a clean plugin copy containing only deliverable source files. Keep a diagnos
 recursively copied by the diagnostic tooling. Doctor isolates its own probe.
 The validator may install the declared package into its own probe environment;
 the plugin itself has no runtime dependencies.
-Tests use the real Hermes TTS ABC and secret-scope context with mocked HTTP
-transport. Red/green records are local `evidence/*.log` (ignored by Git).
+Python tests use the real Hermes TTS ABC, profile/config APIs and secret-scope
+context with mocked HTTP transport. Desktop tests mount React using the existing
+Hermes checkout's React/React DOM/jsdom; set `HERMES_AGENT_ROOT` when necessary.
+These test fixtures are synthetic, not a live gateway/Desktop integration.
+Red/green records are local `evidence/*.log` (ignored by Git).
 Real Cartesia synthesis, ffmpeg conversion and platform delivery require
 separately authorized integration checks; unit tests do not prove cloud account
 access or audible quality.
